@@ -14,8 +14,8 @@ $stmt->execute([$_SESSION['user']]);
 $admin = $stmt->fetch();
 
 
-// Get next appointment
-$stmt2 = $pdo->query("
+// Get next confirmed appointment for this admin only
+$stmt2 = $pdo->prepare("
     SELECT 
         u.name,
         t.date,
@@ -27,51 +27,66 @@ $stmt2 = $pdo->query("
         ON a.user_id = u.id
     JOIN time_slots t 
         ON a.time_slot_id = t.id
-    WHERE CONCAT(t.date, ' ', t.start_time) >= NOW()
-    AND a.status != 'cancelled'
+    WHERE a.status = 'confirmed'
+    AND t.admin_id = ?
+    AND (
+        t.date > CURDATE()
+        OR (t.date = CURDATE() AND t.end_time >= CURTIME())
+    )
     ORDER BY t.date ASC, t.start_time ASC
     LIMIT 1
 ");
 
+$stmt2->execute([$_SESSION['user_id']]);
 $next = $stmt2->fetch();
 
 
 // Update profile
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-    $name = htmlspecialchars($_POST['full_name']);
-    $email = htmlspecialchars($_POST['email']);
-    $phone = htmlspecialchars($_POST['phone']);
+    $name = trim($_POST['full_name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
 
-    $update = $pdo->prepare("
-        UPDATE users 
-        SET 
-            name = ?, 
-            email = ?, 
-            phone = ?
-        WHERE id = ?
-    ");
+    if ($name == "" || $email == "" || $phone == "") {
+        echo "<script>alert('Please fill in all fields');</script>";
 
-    $update->execute([
-        $name,
-        $email,
-        $phone,
-        $admin['id']
-    ]);
+    } elseif (!str_ends_with($email, "@yic.edu.sa") || str_ends_with($email, "@stu.yic.edu.sa")) {
+        echo "<script>alert('Admin email must end with @yic.edu.sa');</script>";
 
-    $_SESSION['user'] = $email;
+    } else {
 
-    $stmt = $pdo->prepare("
-        SELECT * 
-        FROM users 
-        WHERE id = ?
-    ");
+        $update = $pdo->prepare("
+            UPDATE users 
+            SET 
+                name = ?, 
+                email = ?, 
+                phone = ?
+            WHERE id = ?
+        ");
 
-    $stmt->execute([$admin['id']]);
+        $update->execute([
+            $name,
+            $email,
+            $phone,
+            $admin['id']
+        ]);
 
-    $admin = $stmt->fetch();
+        $_SESSION['user'] = $email;
+        $_SESSION['name'] = $name;
 
-    echo "<script>alert('Profile updated successfully');</script>";
+        $stmt = $pdo->prepare("
+            SELECT * 
+            FROM users 
+            WHERE id = ?
+        ");
+
+        $stmt->execute([$admin['id']]);
+
+        $admin = $stmt->fetch();
+
+        echo "<script>alert('Profile updated successfully');</script>";
+    }
 }
 
 
@@ -166,11 +181,11 @@ if ($next && $next['status'] == 'cancelled') {
                     <article class="profile-summary">
 
                         <div class="avatar-circle">
-                            <?= strtoupper(substr($admin['name'], 0, 1)) ?>
+                            <?= htmlspecialchars(strtoupper(substr($admin['name'], 0, 1))) ?>
                         </div>
 
                         <h2>
-                            <?= $admin['name'] ?>
+                            <?= htmlspecialchars($admin['name']) ?>
                         </h2>
 
                         <span class="badge">
@@ -197,19 +212,19 @@ if ($next && $next['status'] == 'cancelled') {
 
                                 <p>
                                     Student:
-                                    <?= $next['name'] ?>
+                                    <?= htmlspecialchars($next['name']) ?>
                                 </p>
 
                                 <p>
                                     <span class="badge <?= $badge ?>">
-                                        <?= ucfirst($next['status']) ?>
+                                        <?= htmlspecialchars(ucfirst($next['status'])) ?>
                                     </span>
                                 </p>
 
                             <?php else: ?>
 
                                 <p>
-                                    No upcoming appointment
+                                    No confirmed appointment
                                 </p>
 
                             <?php endif; ?>
@@ -238,7 +253,7 @@ if ($next && $next['status'] == 'cancelled') {
                                         id="admin-name"
                                         name="full_name"
                                         type="text"
-                                        value="<?= $admin['name'] ?>"
+                                        value="<?= htmlspecialchars($admin['name']) ?>"
                                         required
                                     >
 
@@ -254,7 +269,7 @@ if ($next && $next['status'] == 'cancelled') {
                                         id="admin-email"
                                         name="email"
                                         type="email"
-                                        value="<?= $admin['email'] ?>"
+                                        value="<?= htmlspecialchars($admin['email']) ?>"
                                         required
                                     >
 
@@ -270,7 +285,7 @@ if ($next && $next['status'] == 'cancelled') {
                                         id="admin-phone"
                                         name="phone"
                                         type="tel"
-                                        value="<?= $admin['phone'] ?>"
+                                        value="<?= htmlspecialchars($admin['phone']) ?>"
                                         required
                                     >
 
