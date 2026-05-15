@@ -2,7 +2,7 @@
 include "../includes/db.php";
 include "../includes/admin-auth.php";
 include "../includes/notifications.php";
-
+ 
 $adminId = $_SESSION['user_id'];
 
 if (isset($_GET['read_notification'])) {
