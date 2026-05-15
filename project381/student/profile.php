@@ -17,8 +17,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($name == "" || $email == "" || $studentNumber == "" || $major == "" || $year == "" || $phone == "") {
         $message = "Please fill in all required fields.";
         $messageColor = "#c62828";
-    } elseif (strpos($email, "yic.edu.sa") === false) {
-        $message = "Please enter a valid YIC email.";
+    } elseif (!str_ends_with($email, "@stu.yic.edu.sa")) {
+        $message = "Student email must end with @stu.yic.edu.sa.";
+        $messageColor = "#c62828";
+    } elseif (!ctype_digit($studentNumber) || !ctype_digit($phone) || strlen($phone) != 10 || !in_array($year, ["1", "2", "3", "4"])) {
+        $message = "Please enter valid student information.";
         $messageColor = "#c62828";
     } else {
         $checkStmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
@@ -113,7 +116,7 @@ $nextAppointment = $nextStmt->fetch();
                                 <p>Staff: <?php echo htmlspecialchars($nextAppointment['staff_name']); ?></p>
                                 <p><span class="badge badge-success"><?php echo htmlspecialchars(ucfirst($nextAppointment['status'])); ?></span></p>
                             <?php } else { ?>
-                                <p>No upcoming appointment.</p>
+                                <p>No confirmed appointments yet</p>
                             <?php } ?>
                         </div>
                     </article>
