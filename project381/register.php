@@ -1,19 +1,40 @@
 <?php
+session_start();
 include "includes/db.php";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-    $name = $_POST['full_name'];
+    $name = trim($_POST['full_name']);
     $email =  trim($_POST['email']);
-    $student_id = $_POST['student_id'] ?? null;
-    $major = $_POST['major'] ?? null;
+    $student_id = trim($_POST['student_id'] ?? '');
+    $major = trim($_POST['major'] ?? '');
     $year = !empty($_POST['year_level']) ? $_POST['year_level'] : null;
     $role = $_POST['role'];
-    $phone = $_POST['phone'];
+    $phone = trim($_POST['phone']);
     $password = $_POST['password'];
     $confirm = $_POST['confirm_password'];
 
-   if ($role == "student" && !str_ends_with($email, "@stu.yic.edu.sa")) {
+   if ($name == "" || $email == "" || $role == "" || $phone == "" || $password == "") {
+
+    $error = "Please fill in all required fields";
+
+} elseif (!in_array($role, ["student", "admin"])) {
+
+    $error = "Invalid role selected";
+
+} elseif (!ctype_digit($phone) || strlen($phone) != 10) {
+
+    $error = "Phone number must be 10 digits";
+
+} elseif ($role == "student" && ($student_id == "" || $major == "" || $year == "")) {
+
+    $error = "Please fill in all student fields";
+
+} elseif ($role == "student" && (!ctype_digit($student_id) || !in_array($year, ["1", "2", "3", "4"]))) {
+
+    $error = "Please enter valid student information";
+
+} elseif ($role == "student" && !str_ends_with($email, "@stu.yic.edu.sa")) {
 
     $error = "Student email must end with @stu.yic.edu.sa";
 
