@@ -99,7 +99,7 @@ $notifications = getUnreadNotifications($pdo, $studentId);
                             <p><strong>Staff:</strong> <?php echo htmlspecialchars($nextAppointment['staff_name']); ?></p>
                             <p><strong>Status:</strong> <span class="badge <?php echo $nextAppointment['status'] == 'pending' ? 'badge-warning' : 'badge-success'; ?>"><?php echo htmlspecialchars(ucfirst($nextAppointment['status'])); ?></span></p>
                         <?php } else { ?>
-                            <p>No upcoming appointment.</p>
+                            <p>No confirmed appointments yet</p>
                         <?php } ?>
                     </article>
 
