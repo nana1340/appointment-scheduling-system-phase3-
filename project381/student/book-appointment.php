@@ -49,7 +49,10 @@ $sql = "SELECT time_slots.*, users.name AS staff_name
 FROM time_slots
 JOIN users ON time_slots.admin_id = users.id
 WHERE time_slots.status = 'available'
-AND time_slots.date >= CURDATE()
+AND (
+    time_slots.date > CURDATE()
+    OR (time_slots.date = CURDATE() AND time_slots.end_time >= CURTIME())
+)
 ";
 $params = [];
 
