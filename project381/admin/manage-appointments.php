@@ -3,7 +3,7 @@ include "../includes/db.php";
 include "../includes/admin-auth.php";
 include "../includes/notifications.php";
 
-$adminId = $_SESSION['user_id'];
+$adminId = $_SESSION['user_id']; 
  
 
 // Confirm appointment
