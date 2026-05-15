@@ -1,7 +1,7 @@
 <?php
 include "../includes/db.php";
 include "../includes/admin-auth.php";
-
+ 
 // Get current admin data
 $stmt = $pdo->prepare("
     SELECT * 
