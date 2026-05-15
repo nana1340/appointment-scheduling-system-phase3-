@@ -4,7 +4,7 @@ include "includes/db.php";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-    $email = $_POST['email'];
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
 
     $stmt = $pdo->prepare("
@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user = $stmt->fetch();
 
     if ($user && password_verify($password, $user['password'])) {
+        session_regenerate_id(true);
 
         $_SESSION['user'] = $user['email'];
         $_SESSION['name'] = $user['name'];
@@ -74,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     <button type="submit" class="btn btn-primary btn-block">Log In</button>
                     <?php if(isset($error)): ?>
-    <p class="form-message"><?= $error ?></p>
+    <p class="form-message"><?= htmlspecialchars($error) ?></p>
 <?php endif; ?>
                     <p class="muted-text">Don't have an account? <a href="register.php">Sign up</a></p>
                     <p class="form-message" aria-live="polite"></p>
