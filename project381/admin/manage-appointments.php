@@ -4,7 +4,7 @@ include "../includes/admin-auth.php";
 include "../includes/notifications.php";
 
 $adminId = $_SESSION['user_id'];
-
+ 
 
 // Confirm appointment
 if (isset($_GET['confirm'])) {
