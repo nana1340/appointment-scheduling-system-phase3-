@@ -5,12 +5,16 @@ include "../includes/admin-auth.php";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-    $date = $_POST['date'];
-    $start_time = $_POST['start_time'];
-    $end_time = $_POST['end_time'];
+    $date = trim($_POST['date']);
+    $start_time = trim($_POST['start_time']);
+    $end_time = trim($_POST['end_time']);
 
 
-    if ($end_time <= $start_time) {
+    if ($date == "" || $start_time == "" || $end_time == "") {
+
+        $error = "Please fill in all fields";
+
+    } elseif ($end_time <= $start_time) {
 
         $error = "End time must be after start time";
 
@@ -44,40 +48,71 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // Delete slot
 if (isset($_GET['delete'])) {
 
-    $id = $_GET['delete'];
+    $id = (int) $_GET['delete'];
 
-    $check = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM appointments
-        WHERE time_slot_id=?
+    $slotCheck = $pdo->prepare("
+        SELECT id
+        FROM time_slots
+        WHERE id = ?
+        AND admin_id = ?
     ");
 
-    $check->execute([$id]);
+    $slotCheck->execute([$id, $_SESSION['user_id']]);
+    $slot = $slotCheck->fetch();
 
-    if ($check->fetchColumn() > 0) {
+    if (!$slot) {
 
-        $error = "This slot has an appointment and cannot be deleted";
+        $error = "Slot not found";
 
     } else {
 
-        $pdo->prepare("
-            DELETE FROM time_slots 
-            WHERE id=?
-        ")->execute([$id]);
+        $check = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM appointments
+            WHERE time_slot_id = ?
+            AND status != 'cancelled'
+        ");
 
-        header("Location: manage-slots.php");
-        exit();
+        $check->execute([$id]);
+
+        if ($check->fetchColumn() > 0) {
+
+            $error = "This slot has an appointment and cannot be deleted";
+
+        } else {
+
+            $pdo->prepare("
+                DELETE FROM appointments
+                WHERE time_slot_id = ?
+                AND status = 'cancelled'
+            ")->execute([$id]);
+
+            $pdo->prepare("
+                DELETE FROM time_slots 
+                WHERE id = ?
+                AND admin_id = ?
+            ")->execute([$id, $_SESSION['user_id']]);
+
+            header("Location: manage-slots.php");
+            exit();
+        }
     }
 }
 
 
-// Get all slots
-$stmt = $pdo->query("
+// Get current and future slots for the logged-in admin only
+$stmt = $pdo->prepare("
     SELECT * 
     FROM time_slots 
-    ORDER BY date ASC
+    WHERE admin_id = ?
+    AND (
+        date > CURDATE()
+        OR (date = CURDATE() AND end_time >= CURTIME())
+    )
+    ORDER BY date ASC, start_time ASC
 ");
 
+$stmt->execute([$_SESSION['user_id']]);
 $slots = $stmt->fetchAll();
 ?>
 
@@ -233,7 +268,7 @@ $slots = $stmt->fetchAll();
                     <?php if(isset($error)): ?>
 
                         <p class="form-message">
-                            <?= $error ?>
+                            <?= htmlspecialchars($error) ?>
                         </p>
 
                     <?php endif; ?>
@@ -300,7 +335,7 @@ $slots = $stmt->fetchAll();
                                             ?>
                                         ">
 
-                                            <?= ucfirst($s['status']) ?>
+                                            <?= htmlspecialchars(ucfirst($s['status'])) ?>
 
                                         </span>
 
@@ -309,7 +344,7 @@ $slots = $stmt->fetchAll();
                                     <td>
 
                                         <a
-                                            href="?delete=<?= $s['id'] ?>"
+                                            href="?delete=<?= htmlspecialchars((string) $s['id']) ?>"
                                             class="btn btn-danger btn-small"
                                         >
                                             Delete
