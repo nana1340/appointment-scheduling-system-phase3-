@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $date = trim($_POST['date']);
     $start_time = trim($_POST['start_time']);
-    $end_time = trim($_POST['end_time']);
+    $end_time = trim($_POST['end_time']); 
 
 
     if ($date == "" || $start_time == "" || $end_time == "") {
