@@ -3,28 +3,33 @@ include "../includes/db.php";
 include "../includes/admin-auth.php";
 include "../includes/notifications.php";
 
+$adminId = $_SESSION['user_id'];
+
 
 // Confirm appointment
 if (isset($_GET['confirm'])) {
 
-    $id = $_GET['confirm'];
+    $id = (int) $_GET['confirm'];
 
     $studentStmt = $pdo->prepare("
-        SELECT user_id
-        FROM appointments
-        WHERE id=?
+        SELECT a.user_id
+        FROM appointments a
+        JOIN time_slots t
+            ON a.time_slot_id = t.id
+        WHERE a.id = ?
+        AND t.admin_id = ?
     ");
 
-    $studentStmt->execute([$id]);
+    $studentStmt->execute([$id, $adminId]);
     $appointment = $studentStmt->fetch();
 
-    $pdo->prepare("
-        UPDATE appointments 
-        SET status='confirmed' 
-        WHERE id=?
-    ")->execute([$id]);
-
     if ($appointment) {
+        $pdo->prepare("
+            UPDATE appointments 
+            SET status = 'confirmed' 
+            WHERE id = ?
+        ")->execute([$id]);
+
         createNotification(
             $pdo,
             $appointment['user_id'],
@@ -40,29 +45,33 @@ if (isset($_GET['confirm'])) {
 // Cancel appointment
 if (isset($_GET['cancel'])) {
 
-    $id = $_GET['cancel'];
+    $id = (int) $_GET['cancel'];
 
     $slotStmt = $pdo->prepare("
-        SELECT user_id, time_slot_id
-        FROM appointments
-        WHERE id=?
+        SELECT a.user_id, a.time_slot_id
+        FROM appointments a
+        JOIN time_slots t
+            ON a.time_slot_id = t.id
+        WHERE a.id = ?
+        AND t.admin_id = ?
     ");
 
-    $slotStmt->execute([$id]);
+    $slotStmt->execute([$id, $adminId]);
     $slot = $slotStmt->fetch();
-
-    $pdo->prepare("
-        UPDATE appointments 
-        SET status='cancelled' 
-        WHERE id=?
-    ")->execute([$id]);
 
     if ($slot) {
         $pdo->prepare("
+            UPDATE appointments 
+            SET status = 'cancelled' 
+            WHERE id = ?
+        ")->execute([$id]);
+
+        $pdo->prepare("
             UPDATE time_slots
-            SET status='available'
-            WHERE id=?
-        ")->execute([$slot['time_slot_id']]);
+            SET status = 'available'
+            WHERE id = ?
+            AND admin_id = ?
+        ")->execute([$slot['time_slot_id'], $adminId]);
 
         createNotification(
             $pdo,
@@ -76,8 +85,8 @@ if (isset($_GET['cancel'])) {
 }
 
 
-// Get all appointments with student + slot
-$stmt = $pdo->query("
+// Get appointments for the logged-in admin only
+$stmt = $pdo->prepare("
     SELECT 
         a.id,
         u.name,
@@ -96,9 +105,11 @@ $stmt = $pdo->query("
     JOIN time_slots t 
         ON a.time_slot_id = t.id
     WHERE u.role = 'student'
+    AND t.admin_id = ?
     ORDER BY t.date ASC, t.start_time ASC
 ");
 
+$stmt->execute([$adminId]);
 $appointments = $stmt->fetchAll();
 ?>
 
@@ -294,7 +305,7 @@ $appointments = $stmt->fetchAll();
                                         <td>
 
                                             <a 
-                                                href="?cancel=<?= $a['id'] ?>"
+                                                href="?cancel=<?= htmlspecialchars((string) $a['id']) ?>"
                                                 class="btn btn-danger btn-small"
                                             >
                                                 Cancel
@@ -397,7 +408,7 @@ $appointments = $stmt->fetchAll();
                                                     <input
                                                         type="hidden"
                                                         name="confirm"
-                                                        value="<?= $a['id'] ?>"
+                                                        value="<?= htmlspecialchars((string) $a['id']) ?>"
                                                     >
 
                                                     <button class="btn btn-small">
@@ -411,7 +422,7 @@ $appointments = $stmt->fetchAll();
                                                     <input
                                                         type="hidden"
                                                         name="cancel"
-                                                        value="<?= $a['id'] ?>"
+                                                        value="<?= htmlspecialchars((string) $a['id']) ?>"
                                                     >
 
                                                     <button class="btn btn-danger btn-small">
