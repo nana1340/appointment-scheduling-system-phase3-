@@ -11,30 +11,53 @@ if (isset($_GET['read_notification'])) {
     exit();
 }
 
-$totalSlots = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT COUNT(*) 
     FROM time_slots
-")->fetchColumn();
+    WHERE admin_id = ?
+    AND (
+        date > CURDATE()
+        OR (date = CURDATE() AND end_time >= CURTIME())
+    )
+");
+$stmt->execute([$adminId]);
+$totalSlots = $stmt->fetchColumn();
 
-$bookedSlots = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT COUNT(*) 
     FROM time_slots 
-    WHERE status='booked'
-")->fetchColumn();
+    WHERE status = 'booked'
+    AND admin_id = ?
+    AND (
+        date > CURDATE()
+        OR (date = CURDATE() AND end_time >= CURTIME())
+    )
+");
+$stmt->execute([$adminId]);
+$bookedSlots = $stmt->fetchColumn();
 
-$pending = $pdo->query("
-    SELECT COUNT(*) 
-    FROM appointments 
-    WHERE status='pending'
-")->fetchColumn();
+$stmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM appointments a
+    JOIN time_slots t
+        ON a.time_slot_id = t.id
+    WHERE a.status = 'pending'
+    AND t.admin_id = ?
+    AND (
+        t.date > CURDATE()
+        OR (t.date = CURDATE() AND t.end_time >= CURTIME())
+    )
+");
+$stmt->execute([$adminId]);
+$pending = $stmt->fetchColumn();
 
 $totalStudents = $pdo->query("
     SELECT COUNT(*) 
     FROM users 
-    WHERE role='student'
+    WHERE role = 'student'
 ")->fetchColumn();
 
-$stmt = $pdo->query(" 
+$stmt = $pdo->prepare(" 
     SELECT 
         u.name,
         t.date,
@@ -46,7 +69,8 @@ $stmt = $pdo->query("
         ON a.user_id = u.id
     JOIN time_slots t 
         ON a.time_slot_id = t.id
-    WHERE a.status != 'cancelled'
+    WHERE a.status = 'confirmed'
+    AND t.admin_id = ?
     AND (
         t.date > CURDATE()
         OR (t.date = CURDATE() AND t.end_time >= CURTIME())
@@ -55,6 +79,7 @@ $stmt = $pdo->query("
     LIMIT 1
 ");
 
+$stmt->execute([$adminId]);
 $next = $stmt->fetch();
 
 $badge = 'badge-success';
@@ -126,7 +151,7 @@ $notifications = getUnreadNotifications($pdo, $adminId);
 
                     <h2>
                         Welcome back,
-                        <?= $_SESSION['name'] ?? 'Admin' ?>
+                        <?= htmlspecialchars($_SESSION['name'] ?? 'Admin') ?>
                     </h2>
 
                     <p>
@@ -170,32 +195,32 @@ $notifications = getUnreadNotifications($pdo, $adminId);
 
                             <p>
                                 <strong>Student:</strong>
-                                <?= $next['name'] ?>
+                                <?= htmlspecialchars($next['name']) ?>
                             </p>
 
                             <p>
                                 <strong>Date:</strong>
-                                <?= $next['date'] ?>
+                                <?= htmlspecialchars($next['date']) ?>
                             </p>
 
                             <p>
                                 <strong>Time:</strong>
-                                <?= $next['start_time'] ?>
+                                <?= htmlspecialchars($next['start_time']) ?>
                                 -
-                                <?= $next['end_time'] ?>
+                                <?= htmlspecialchars($next['end_time']) ?>
                             </p>
 
                             <p>
                                 <strong>Status:</strong>
 
                                 <span class="badge <?= $badge ?>">
-                                    <?= $next['status'] ?>
+                                    <?= htmlspecialchars($next['status']) ?>
                                 </span>
                             </p>
 
                         <?php else: ?>
 
-                            <p>No appointments yet</p>
+                            <p>No confirmed appointments yet</p>
 
                         <?php endif; ?>
 
